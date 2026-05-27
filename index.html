@@ -412,7 +412,7 @@
 let fileAyer = null, fileHoy = null;
 let resDetail = null, resSummary = null, resStats = null;
 
-const ESTADO_ORIGEN = 'En_Servicio';
+const ESTADO_ORIGEN = 'en_servicio'; // comparación siempre en minúsculas
 const COLS_REQ = ['LINE_ID', 'DSLAM', 'ESTADO_ENLACE', 'SPLITTER_2_NAME'];
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -611,7 +611,7 @@ async function run() {
     const detail = rowsHoy.map(r => {
       const ea = mapAyer.hasOwnProperty(r.LINE_ID) ? mapAyer[r.LINE_ID] : 'SIN_DATO_AYER';
       const eh = r.ESTADO_ENLACE;
-      const cambio = (ea === ESTADO_ORIGEN && eh !== ESTADO_ORIGEN)
+      const cambio = (ea.toLowerCase() === ESTADO_ORIGEN && eh.toLowerCase() !== ESTADO_ORIGEN)
         ? ea + ' → ' + eh : '';
       return {
         LINE_ID:             r.LINE_ID,

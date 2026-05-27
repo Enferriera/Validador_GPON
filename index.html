@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Comparador de Estado GPON</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #0f1117;
+      --bg2:         #161b27;
+      --bg3:         #1e2535;
+      --border:      #2a3347;
+      --border2:     #3a4a63;
+      --text:        #e2e8f0;
+      --text2:       #94a3b8;
+      --text3:       #64748b;
+      --accent:      #38bdf8;
+      --accent-bg:   #0c2133;
+      --success:     #34d399;
+      --success-bg:  #052e16;
+      --warn:        #fbbf24;
+      --warn-bg:     #1c1a08;
+      --danger:      #f87171;
+      --danger-bg:   #2d0f0f;
+      --radius:      10px;
+      --radius-sm:   6px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 14px;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .header-left { display: flex; align-items: center; gap: 12px; }
+    .header-icon {
+      width: 36px; height: 36px;
+      background: var(--accent-bg);
+      border: 1px solid var(--accent);
+      border-radius: var(--radius-sm);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--accent); font-size: 18px;
+    }
+    .header-title { font-size: 17px; font-weight: 600; color: var(--text); }
+    .header-sub   { font-size: 12px; color: var(--text3); margin-top: 1px; }
+    .header-badge {
+      font-size: 11px; padding: 3px 10px;
+      background: var(--accent-bg);
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      border-radius: 20px;
+    }
+
+    /* ── Main layout ── */
+    .main { max-width: 900px; margin: 0 auto; padding: 28px 24px; }
+
+    /* ── Warning box ── */
+    .warn-box {
+      background: var(--warn-bg);
+      border: 1px solid rgba(251,191,36,.3);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      font-size: 12px;
+      color: var(--warn);
+      display: flex; gap: 10px; align-items: flex-start;
+      margin-bottom: 20px;
+    }
+    .warn-box svg { flex-shrink: 0; margin-top: 1px; }
+
+    /* ── Card ── */
+    .card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      margin-bottom: 14px;
+    }
+    .card-label {
+      font-size: 11px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .06em; color: var(--text3);
+      margin-bottom: 10px; display: flex; align-items: center; gap: 6px;
+    }
+    .card-label svg { opacity: .6; }
+
+    /* ── Drop zones ── */
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+    @media(max-width:600px){ .grid2 { grid-template-columns: 1fr; } }
+
+    .drop-zone {
+      border: 1.5px dashed var(--border2);
+      border-radius: var(--radius-sm);
+      padding: 18px 12px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+      min-height: 80px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    }
+    .drop-zone:hover, .drop-zone.drag {
+      border-color: var(--accent);
+      background: var(--accent-bg);
+    }
+    .drop-zone.ready {
+      border-color: var(--success);
+      background: var(--success-bg);
+    }
+    .drop-zone.file-error {
+      border-color: var(--danger);
+      background: var(--danger-bg);
+    }
+    .drop-zone svg { opacity: .5; }
+    .drop-zone.ready svg { opacity: 1; color: var(--success); }
+    .dz-name { font-size: 12px; font-weight: 500; }
+    .dz-meta { font-size: 11px; color: var(--text3); }
+    input[type=file] { display: none; }
+
+    /* ── Nemónico input ── */
+    .nem-row { display: flex; gap: 10px; align-items: center; }
+    .nem-row input[type=text] {
+      flex: 1; height: 38px; padding: 0 12px;
+      background: var(--bg3);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 14px;
+      transition: border-color .15s;
+    }
+    .nem-row input[type=text]:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(56,189,248,.12);
+    }
+    .hint { font-size: 11px; color: var(--text3); margin-top: 6px; }
+
+    /* ── Progress ── */
+    .progress-wrap { margin-bottom: 12px; display: none; }
+    .progress-meta {
+      display: flex; justify-content: space-between;
+      font-size: 11px; color: var(--text2); margin-bottom: 6px;
+    }
+    .progress-track {
+      height: 5px; background: var(--bg3);
+      border-radius: 3px; overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%; background: var(--accent);
+      border-radius: 3px; width: 0%; transition: width .12s;
+    }
+
+    /* ── Log ── */
+    .log {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 11px;
+      line-height: 1.9;
+      max-height: 150px;
+      overflow-y: auto;
+      margin-bottom: 12px;
+      display: none;
+    }
+    .log.show { display: block; }
+    .ll  { display: block; color: var(--text2); }
+    .lok { color: var(--success); }
+    .lerr{ color: var(--danger);  }
+    .lwarn{ color: var(--warn);   }
+
+    /* ── Buttons ── */
+    .btn {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%; height: 42px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border2);
+      background: var(--bg3);
+      color: var(--text);
+      font-size: 14px; font-weight: 500;
+      cursor: pointer;
+      transition: background .12s, border-color .12s, transform .1s;
+    }
+    .btn:hover:not(:disabled) { background: var(--bg2); border-color: var(--accent); color: var(--accent); }
+    .btn:active:not(:disabled){ transform: scale(.98); }
+    .btn:disabled { opacity: .35; cursor: not-allowed; }
+    .btn svg { flex-shrink: 0; }
+
+    .btn-success {
+      background: var(--success-bg);
+      border-color: rgba(52,211,153,.4);
+      color: var(--success);
+    }
+    .btn-success:hover:not(:disabled) {
+      background: rgba(52,211,153,.12);
+      border-color: var(--success);
+    }
+
+    /* ── Stats ── */
+    .stats-grid {
+      display: grid; grid-template-columns: repeat(3,1fr);
+      gap: 10px; margin-bottom: 14px;
+    }
+    @media(max-width:480px){ .stats-grid { grid-template-columns: 1fr 1fr; } }
+    .stat {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 14px 12px; text-align: center;
+    }
+    .stat .sn { font-size: 26px; font-weight: 600; }
+    .stat .sl { font-size: 11px; color: var(--text3); margin-top: 3px; }
+    .stat.ok     .sn { color: var(--success); }
+    .stat.warn   .sn { color: var(--warn);    }
+    .stat.danger .sn { color: var(--danger);  }
+
+    /* ── Table preview ── */
+    .section-title {
+      font-size: 12px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .06em; color: var(--text3);
+      margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;
+    }
+    .section-title span { font-weight: 400; text-transform: none; color: var(--text3); letter-spacing: 0; }
+    .tbl-wrap {
+      overflow: auto; max-height: 280px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      margin-bottom: 14px;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; white-space: nowrap; }
+    th {
+      background: var(--bg3); padding: 8px 12px;
+      text-align: left; font-weight: 600; font-size: 11px;
+      text-transform: uppercase; letter-spacing: .04em; color: var(--text3);
+      position: sticky; top: 0;
+      border-bottom: 1px solid var(--border);
+    }
+    td { padding: 7px 12px; border-bottom: 1px solid var(--border); color: var(--text2); }
+    tr:last-child td { border-bottom: none; }
+    tr.changed td { background: rgba(248,113,113,.06); }
+    tr.changed td:first-child { border-left: 2px solid var(--danger); }
+    tr.newline td { background: rgba(251,191,36,.05); }
+    tr.newline td:first-child { border-left: 2px solid var(--warn); }
+
+    /* ── Badges ── */
+    .badge {
+      display: inline-block; font-size: 10px; padding: 2px 7px;
+      border-radius: 4px; font-weight: 600; white-space: nowrap;
+    }
+    .bok  { background: rgba(52,211,153,.15); color: var(--success); }
+    .berr { background: rgba(248,113,113,.2);  color: var(--danger);  }
+    .bwarn{ background: rgba(251,191,36,.15);  color: var(--warn);    }
+
+    /* ── Results section ── */
+    #section-results { display: none; }
+
+    /* ── Footer ── */
+    .footer {
+      text-align: center; padding: 24px;
+      font-size: 11px; color: var(--text3);
+      border-top: 1px solid var(--border);
+      margin-top: 16px;
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-left">
+    <div class="header-icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+      </svg>
+    </div>
+    <div>
+      <div class="header-title">Comparador de Estado GPON</div>
+      <div class="header-sub">Detección de cambios En_Servicio → otro estado</div>
+    </div>
+  </div>
+  <div class="header-badge">100% cliente · sin servidor</div>
+</header>
+
+<!-- MAIN -->
+<main class="main">
+
+  <!-- Aviso archivos grandes -->
+  <div class="warn-box">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    <span>
+      <strong>Archivos grandes:</strong> la lectura es en streaming — el filtro se aplica fila a fila, solo las coincidencias se cargan en memoria.
+      Para archivos de varios cientos de MB puede tardar 1-3 minutos. Ingresá el nemónico <em>antes</em> de seleccionar los archivos.
+    </span>
+  </div>
+
+  <!-- PASO 1 — Nemónico -->
+  <div class="card">
+    <div class="card-label">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+      Paso 1 — Nemónico (filtro sobre columna DSLAM)
+    </div>
+    <div class="nem-row">
+      <input type="text" id="nemonico" placeholder="ej: CH_OLTS_PMN" autocomplete="off" spellcheck="false">
+    </div>
+    <p class="hint">Coincidencia parcial · insensible a mayúsculas · se aplica durante la lectura del CSV</p>
+  </div>
+
+  <!-- PASO 2 — Archivos -->
+  <div class="grid2">
+    <div class="card" style="margin-bottom:0">
+      <div class="card-label">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Paso 2a — CSV Ayer
+      </div>
+      <div class="drop-zone" id="dz-ayer" onclick="document.getElementById('f-ayer').click()"
+           ondragover="dzDrag(event,'dz-ayer')" ondragleave="dzLeave('dz-ayer')"
+           ondrop="dzDrop(event,'f-ayer','dz-ayer','ayer')">
+        <svg id="ico-ayer" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        <span class="dz-name" id="name-ayer">Seleccionar o soltar</span>
+        <span class="dz-meta" id="meta-ayer">separador ;</span>
+      </div>
+      <input type="file" id="f-ayer" accept=".csv,.txt" onchange="storeFile(this.files[0],'ayer')">
+    </div>
+
+    <div class="card" style="margin-bottom:0">
+      <div class="card-label">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Paso 2b — CSV Hoy
+      </div>
+      <div class="drop-zone" id="dz-hoy" onclick="document.getElementById('f-hoy').click()"
+           ondragover="dzDrag(event,'dz-hoy')" ondragleave="dzLeave('dz-hoy')"
+           ondrop="dzDrop(event,'f-hoy','dz-hoy','hoy')">
+        <svg id="ico-hoy" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        <span class="dz-name" id="name-hoy">Seleccionar o soltar</span>
+        <span class="dz-meta" id="meta-hoy">separador ;</span>
+      </div>
+      <input type="file" id="f-hoy" accept=".csv,.txt" onchange="storeFile(this.files[0],'hoy')">
+    </div>
+  </div>
+
+  <!-- PASO 3 — Procesar -->
+  <div class="card">
+    <div class="progress-wrap" id="pw">
+      <div class="progress-meta">
+        <span id="prog-label">Leyendo...</span>
+        <span id="prog-pct">0%</span>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="prog-bar"></div></div>
+    </div>
+    <div id="log" class="log"></div>
+    <button class="btn" id="btn-run" onclick="run()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      Paso 3 — Procesar y generar Excel
+    </button>
+  </div>
+
+  <!-- RESULTADOS -->
+  <div id="section-results">
+
+    <div class="stats-grid" id="stats-row"></div>
+
+    <div class="card">
+      <div class="section-title">
+        Hoja Detalle
+        <span id="prev-count"></span>
+      </div>
+      <div class="tbl-wrap" id="preview"></div>
+    </div>
+
+    <div class="card">
+      <div class="section-title" style="margin-bottom:14px">Hoja Resumen por Splitter</div>
+      <div class="tbl-wrap" id="preview-resumen"></div>
+    </div>
+
+    <button class="btn btn-success" id="btn-dl" onclick="download()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Descargar Excel (.xlsx)
+    </button>
+
+  </div>
+
+</main>
+
+<footer class="footer">
+  Todo el procesamiento ocurre en tu navegador · ningún archivo se sube a servidores
+</footer>
+
+<!-- LIBS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   ESTADO GLOBAL
+═══════════════════════════════════════════════════════════════════════════ */
+let fileAyer = null, fileHoy = null;
+let resDetail = null, resSummary = null, resStats = null;
+
+const ESTADO_ORIGEN = 'En_Servicio';
+const COLS_REQ = ['LINE_ID', 'DSLAM', 'ESTADO_ENLACE', 'SPLITTER_2_NAME'];
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LOG
+═══════════════════════════════════════════════════════════════════════════ */
+function tsNow() {
+  return new Date().toLocaleTimeString('es-AR', { hour12: false });
+}
+function log(msg, cls = '') {
+  const el = document.getElementById('log');
+  el.classList.add('show');
+  const s = document.createElement('span');
+  s.className = 'll' + (cls ? ' ' + cls : '');
+  s.textContent = '[' + tsNow() + '] ' + msg;
+  el.appendChild(s);
+  el.scrollTop = el.scrollHeight;
+}
+function lok(m)  { log('✓ ' + m, 'lok');  }
+function lerr(m) { log('✗ ' + m, 'lerr'); }
+function lwarn(m){ log('⚠ ' + m, 'lwarn');}
+function clearLog() {
+  const el = document.getElementById('log');
+  el.innerHTML = '';
+  el.classList.remove('show');
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PROGRESO
+═══════════════════════════════════════════════════════════════════════════ */
+function setProgress(label, pct) {
+  document.getElementById('pw').style.display = 'block';
+  document.getElementById('prog-label').textContent = label;
+  document.getElementById('prog-pct').textContent = Math.round(pct) + '%';
+  document.getElementById('prog-bar').style.width = pct + '%';
+}
+function hideProgress() {
+  document.getElementById('pw').style.display = 'none';
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   UTILIDADES
+═══════════════════════════════════════════════════════════════════════════ */
+function fmtSize(bytes) {
+  if (bytes >= 1e9) return (bytes / 1e9).toFixed(1) + ' GB';
+  if (bytes >= 1e6) return (bytes / 1e6).toFixed(1) + ' MB';
+  return (bytes / 1e3).toFixed(0) + ' KB';
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DROP ZONES
+═══════════════════════════════════════════════════════════════════════════ */
+function dzDrag(e, id) { e.preventDefault(); document.getElementById(id).classList.add('drag'); }
+function dzLeave(id)   { document.getElementById(id).classList.remove('drag'); }
+function dzDrop(e, inputId, dzId, side) {
+  e.preventDefault();
+  document.getElementById(dzId).classList.remove('drag');
+  storeFile(e.dataTransfer.files[0], side);
+}
+
+function storeFile(file, side) {
+  if (!file) return;
+  const nameId = 'name-' + side;
+  const metaId = 'meta-' + side;
+  const dzId   = 'dz-'   + side;
+  const icoId  = 'ico-'  + side;
+
+  document.getElementById(nameId).textContent = file.name;
+  document.getElementById(metaId).textContent = fmtSize(file.size);
+
+  const dz = document.getElementById(dzId);
+  dz.className = 'drop-zone ready';
+
+  /* Reemplazar ícono por check */
+  document.getElementById(icoId).outerHTML =
+    '<svg id="ico-' + side + '" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+    '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>';
+
+  if (side === 'ayer') fileAyer = file; else fileHoy = file;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PARSER EN STREAMING
+═══════════════════════════════════════════════════════════════════════════ */
+function parseStream(file, nemL, label, fileIndex) {
+  return new Promise((resolve, reject) => {
+    const rows = [];
+    let rowCount = 0;
+    let headersValidated = false;
+    const base  = fileIndex * 50;   /* cada archivo = 50% del total */
+    const share = 50;
+
+    Papa.parse(file, {
+      delimiter: ';',
+      header: true,
+      skipEmptyLines: true,
+      encoding: 'UTF-8',
+
+      step(result, parser) {
+        /* Validar columnas en la primera fila */
+        if (!headersValidated) {
+          headersValidated = true;
+          const cols = result.meta.fields || [];
+          const missing = COLS_REQ.filter(c => !cols.includes(c));
+          if (missing.length) {
+            parser.abort();
+            reject(new Error('Columnas faltantes en ' + label + ': ' + missing.join(', ')));
+            return;
+          }
+        }
+
+        rowCount++;
+        const r = result.data;
+
+        /* Filtrar por nemónico inline → solo guardamos coincidencias */
+        if ((r.DSLAM || '').toLowerCase().includes(nemL)) {
+          rows.push({
+            LINE_ID:         (r.LINE_ID         || '').trim(),
+            DSLAM:           (r.DSLAM           || '').trim(),
+            ESTADO_ENLACE:   (r.ESTADO_ENLACE   || '').trim(),
+            SPLITTER_2_NAME: (r.SPLITTER_2_NAME || '').trim()
+          });
+        }
+
+        /* Actualizar progreso cada 10.000 filas */
+        if (rowCount % 10000 === 0) {
+          const cursor = result.meta.cursor || 0;
+          const pct = base + (cursor / file.size) * share;
+          setProgress(
+            'Leyendo ' + label + ' — ' + rows.length.toLocaleString('es-AR') + ' coincidencias...',
+            Math.min(pct, base + share - 1)
+          );
+        }
+      },
+
+      complete() {
+        setProgress(label + ' completado', base + share);
+        resolve({ rows, rowCount });
+      },
+
+      error(e) {
+        reject(new Error('Error al leer ' + label + ': ' + e.message));
+      }
+    });
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LÓGICA PRINCIPAL
+═══════════════════════════════════════════════════════════════════════════ */
+async function run() {
+  clearLog();
+  document.getElementById('section-results').style.display = 'none';
+  resDetail = null; resSummary = null; resStats = null;
+
+  const nem = document.getElementById('nemonico').value.trim();
+  let ok = true;
+  if (!nem)      { lerr('Ingresá un nemónico antes de procesar');   ok = false; }
+  if (!fileAyer) { lerr('Seleccioná el CSV de ayer');               ok = false; }
+  if (!fileHoy)  { lerr('Seleccioná el CSV de hoy');                ok = false; }
+  if (!ok) return;
+
+  const btn = document.getElementById('btn-run');
+  btn.disabled = true;
+
+  try {
+    const nemL = nem.toLowerCase();
+
+    log('Iniciando lectura en streaming...');
+    log('Ayer: ' + fileAyer.name + ' (' + fmtSize(fileAyer.size) + ')');
+    log('Hoy:  ' + fileHoy.name  + ' (' + fmtSize(fileHoy.size)  + ')');
+
+    /* ── Leer CSV ayer ── */
+    const { rows: rowsAyer, rowCount: rcAyer } =
+      await parseStream(fileAyer, nemL, 'CSV Ayer', 0);
+    lok('CSV Ayer: ' + rcAyer.toLocaleString('es-AR') + ' filas → ' +
+        rowsAyer.length.toLocaleString('es-AR') + ' coincidencias');
+
+    /* ── Leer CSV hoy ── */
+    const { rows: rowsHoy, rowCount: rcHoy } =
+      await parseStream(fileHoy, nemL, 'CSV Hoy', 1);
+    lok('CSV Hoy: ' + rcHoy.toLocaleString('es-AR') + ' filas → ' +
+        rowsHoy.length.toLocaleString('es-AR') + ' coincidencias');
+
+    hideProgress();
+
+    if (!rowsAyer.length && !rowsHoy.length) {
+      lwarn('Sin coincidencias para "' + nem + '" en ninguno de los dos archivos');
+      btn.disabled = false;
+      return;
+    }
+
+    /* ── Merge por LINE_ID ── */
+    log('Cruzando registros por LINE_ID...');
+    const mapAyer = Object.fromEntries(rowsAyer.map(r => [r.LINE_ID, r.ESTADO_ENLACE]));
+
+    const detail = rowsHoy.map(r => {
+      const ea = mapAyer.hasOwnProperty(r.LINE_ID) ? mapAyer[r.LINE_ID] : 'SIN_DATO_AYER';
+      const eh = r.ESTADO_ENLACE;
+      const cambio = (ea === ESTADO_ORIGEN && eh !== ESTADO_ORIGEN)
+        ? ea + ' → ' + eh : '';
+      return {
+        LINE_ID:             r.LINE_ID,
+        DSLAM:               r.DSLAM,
+        ESTADO_ENLACE_AYER:  ea,
+        ESTADO_ENLACE_HOY:   eh,
+        SPLITTER_2_NAME:     r.SPLITTER_2_NAME,
+        CAMBIO_ESTADO:       cambio
+      };
+    });
+
+    /* Ordenar: primero cambios, luego por splitter */
+    detail.sort((a, b) => {
+      if (!!a.CAMBIO_ESTADO !== !!b.CAMBIO_ESTADO) return a.CAMBIO_ESTADO ? -1 : 1;
+      return (a.SPLITTER_2_NAME || '').localeCompare(b.SPLITTER_2_NAME || '');
+    });
+
+    const nCambios = detail.filter(r => r.CAMBIO_ESTADO).length;
+    const nNuevas  = detail.filter(r => r.ESTADO_ENLACE_AYER === 'SIN_DATO_AYER').length;
+    lok('Cambios de estado detectados: ' + nCambios);
+    if (nNuevas) lwarn('Líneas sin historial en CSV ayer: ' + nNuevas);
+
+    /* ── Resumen por SPLITTER_2_NAME ── */
+    const mapaRes = {};
+    detail.filter(r => r.CAMBIO_ESTADO).forEach(r => {
+      const sp = r.SPLITTER_2_NAME || '(sin splitter)';
+      if (!mapaRes[sp]) mapaRes[sp] = { SPLITTER_2_NAME: sp, CANTIDAD_CAMBIOS: 0, LINEAS: [] };
+      mapaRes[sp].CANTIDAD_CAMBIOS++;
+      if (mapaRes[sp].LINEAS.length < 10) mapaRes[sp].LINEAS.push(r.LINE_ID);
+    });
+
+    const summary = Object.values(mapaRes)
+      .sort((a, b) => b.CANTIDAD_CAMBIOS - a.CANTIDAD_CAMBIOS)
+      .map(r => ({
+        SPLITTER_2_NAME:  r.SPLITTER_2_NAME,
+        CANTIDAD_CAMBIOS: r.CANTIDAD_CAMBIOS,
+        LINEAS_AFECTADAS: r.LINEAS.join(', ')
+      }));
+
+    lok('Splitters afectados: ' + summary.length);
+
+    resDetail  = detail;
+    resSummary = summary;
+    resStats   = {
+      ayer:     rowsAyer.length,
+      hoy:      rowsHoy.length,
+      total:    detail.length,
+      cambios:  nCambios,
+      splitters:summary.length,
+      nuevas:   nNuevas
+    };
+
+    renderResults();
+
+  } catch (e) {
+    lerr(e.message);
+    hideProgress();
+  }
+
+  btn.disabled = false;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RENDER RESULTADOS
+═══════════════════════════════════════════════════════════════════════════ */
+function renderResults() {
+  const s = resStats;
+  document.getElementById('section-results').style.display = 'block';
+
+  /* Stats */
+  const sc = s.cambios >= 10 ? 'danger' : s.cambios >= 3 ? 'warn' : 'ok';
+  document.getElementById('stats-row').innerHTML =
+    '<div class="stat"><div class="sn">' + s.hoy.toLocaleString('es-AR') + '</div><div class="sl">registros (hoy)</div></div>' +
+    '<div class="stat ' + sc + '"><div class="sn">' + s.cambios + '</div><div class="sl">cambios de estado</div></div>' +
+    '<div class="stat"><div class="sn">' + s.splitters + '</div><div class="sl">splitters afectados</div></div>';
+
+  /* Tabla detalle */
+  const rows = resDetail.slice(0, 300);
+  document.getElementById('prev-count').textContent =
+    resDetail.length.toLocaleString('es-AR') + ' filas · mostrando ' + rows.length;
+
+  let h = '<table><thead><tr><th>LINE_ID</th><th>DSLAM</th><th>Estado ayer</th><th>Estado hoy</th><th>Splitter</th><th>Cambio</th></tr></thead><tbody>';
+  rows.forEach(r => {
+    const cls = r.CAMBIO_ESTADO ? 'changed' : r.ESTADO_ENLACE_AYER === 'SIN_DATO_AYER' ? 'newline' : '';
+    const badge = r.CAMBIO_ESTADO
+      ? '<span class="badge berr">' + r.CAMBIO_ESTADO + '</span>'
+      : r.ESTADO_ENLACE_AYER === 'SIN_DATO_AYER'
+        ? '<span class="badge bwarn">nueva línea</span>'
+        : '<span class="badge bok">sin cambio</span>';
+    h += '<tr class="' + cls + '"><td>' + r.LINE_ID + '</td><td>' + r.DSLAM +
+         '</td><td>' + r.ESTADO_ENLACE_AYER + '</td><td>' + r.ESTADO_ENLACE_HOY +
+         '</td><td>' + r.SPLITTER_2_NAME + '</td><td>' + badge + '</td></tr>';
+  });
+  h += '</tbody></table>';
+  document.getElementById('preview').innerHTML = h;
+
+  /* Tabla resumen */
+  let h2 = '<table><thead><tr><th>SPLITTER_2_NAME</th><th>CANTIDAD CAMBIOS</th><th>LÍNEAS AFECTADAS (máx 10)</th></tr></thead><tbody>';
+  resSummary.forEach(r => {
+    const cnt = r.CANTIDAD_CAMBIOS;
+    const bc = cnt >= 10 ? 'berr' : cnt >= 5 ? 'bwarn' : 'bok';
+    h2 += '<tr><td>' + r.SPLITTER_2_NAME + '</td><td><span class="badge ' + bc + '">' +
+          cnt + '</span></td><td style="color:var(--text3)">' + r.LINEAS_AFECTADAS + '</td></tr>';
+  });
+  h2 += '</tbody></table>';
+  document.getElementById('preview-resumen').innerHTML = h2;
+
+  document.getElementById('section-results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DESCARGA EXCEL
+═══════════════════════════════════════════════════════════════════════════ */
+function download() {
+  if (!resDetail) return;
+
+  const wb = XLSX.utils.book_new();
+
+  /* Hoja 1 — Detalle */
+  const hdrDet = ['LINE_ID','DSLAM','ESTADO_ENLACE_AYER','ESTADO_ENLACE_HOY','SPLITTER_2_NAME','CAMBIO_ESTADO'];
+  const wsDet  = XLSX.utils.json_to_sheet(resDetail, { header: hdrDet });
+  XLSX.utils.book_append_sheet(wb, wsDet, 'Detalle');
+
+  /* Hoja 2 — Resumen */
+  const hdrRes = ['SPLITTER_2_NAME','CANTIDAD_CAMBIOS','LINEAS_AFECTADAS'];
+  const wsRes  = XLSX.utils.json_to_sheet(resSummary, { header: hdrRes });
+  XLSX.utils.book_append_sheet(wb, wsRes, 'Resumen por Splitter');
+
+  /* Hoja 3 — Estadísticas */
+  const statsData = [
+    ['Parámetro', 'Valor'],
+    ['Registros filtrados (ayer)',    resStats.ayer],
+    ['Registros filtrados (hoy)',     resStats.hoy],
+    ['Total registros en salida',     resStats.total],
+    ['Cambios de estado detectados',  resStats.cambios],
+    ['Splitters afectados',           resStats.splitters],
+    ['Líneas nuevas (sin dato ayer)', resStats.nuevas],
+    ['Generado', new Date().toLocaleString('es-AR')],
+  ];
+  const wsStats = XLSX.utils.aoa_to_sheet(statsData);
+  XLSX.utils.book_append_sheet(wb, wsStats, 'Estadísticas');
+
+  /* Nombre del archivo */
+  const nem = document.getElementById('nemonico').value.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+  const ts  = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+  const filename = 'estado_gpon_' + nem + '_' + ts + '.xlsx';
+
+  XLSX.writeFile(wb, filename);
+  lok('Excel descargado: ' + filename);
+}
+</script>
+</body>
+</html>
